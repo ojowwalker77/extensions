@@ -122,8 +122,6 @@ export class NetworkService {
   private ipCache: Map<string, { data: IPAddress[]; timestamp: number }> = new Map();
   private firewallCache: Map<string, { data: FirewallRule[]; timestamp: number }> = new Map();
 
-  private static regionsCache: string[] | null = null;
-
   private static instance: NetworkService | null = null;
 
   public static getInstance(gcloudPath: string, projectId: string): NetworkService {

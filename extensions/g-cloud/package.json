@@ -56,6 +56,14 @@
       "type": "textfield",
       "required": false,
       "default": ""
+    },
+    {
+      "name": "defaultRegion",
+      "title": "Default Region",
+      "description": "Default GCP region for new resources (e.g., us-central1, europe-west1)",
+      "type": "textfield",
+      "required": false,
+      "default": "us-central1"
     }
   ],
   "dependencies": {

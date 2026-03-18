@@ -12,6 +12,7 @@ import {
 } from "@raycast/api";
 import { GCloudConfig } from "../types";
 import { activateConfiguration, deleteConfiguration } from "../ConfigurationsService";
+import { friendlyErrorMessage } from "../../../utils/errorMessages";
 
 interface Props {
   config: GCloudConfig;
@@ -37,9 +38,10 @@ export function ConfigurationDetailView({ config, gcloudPath, onRefresh }: Props
       await onRefresh();
       pop();
     } catch (error) {
+      const friendly = friendlyErrorMessage(error, "Failed to activate");
       toast.style = Toast.Style.Failure;
-      toast.title = "Failed to activate";
-      toast.message = error instanceof Error ? error.message : String(error);
+      toast.title = friendly.title;
+      toast.message = friendly.message;
     }
   }
 
@@ -58,9 +60,10 @@ export function ConfigurationDetailView({ config, gcloudPath, onRefresh }: Props
       await onRefresh();
       pop();
     } catch (error) {
+      const friendly = friendlyErrorMessage(error, "Failed to delete");
       toast.style = Toast.Style.Failure;
-      toast.title = "Failed to delete";
-      toast.message = error instanceof Error ? error.message : String(error);
+      toast.title = friendly.title;
+      toast.message = friendly.message;
     }
   }
 
@@ -93,7 +96,7 @@ export function ConfigurationDetailView({ config, gcloudPath, onRefresh }: Props
               title="Delete Configuration"
               icon={Icon.Trash}
               style={Action.Style.Destructive}
-              shortcut={{ modifiers: ["cmd"], key: "delete" }}
+              shortcut={{ modifiers: ["cmd", "shift"], key: "x" }}
               onAction={handleDelete}
             />
           )}

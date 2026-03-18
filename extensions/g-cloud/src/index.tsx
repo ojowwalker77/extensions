@@ -99,7 +99,11 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
 
   // Check gcloud installation and auth on mount
   useEffect(() => {
-    checkGcloudInstallation();
+    let cancelled = false;
+    checkGcloudInstallation(cancelled);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Load recent resources
@@ -110,12 +114,16 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
 
   // Load service counts when project changes
   useEffect(() => {
+    let cancelled = false;
     if (selectedProject && isAuthenticated) {
-      loadServiceCounts(selectedProject);
+      loadServiceCounts(selectedProject, cancelled);
     }
+    return () => {
+      cancelled = true;
+    };
   }, [selectedProject, isAuthenticated]);
 
-  async function checkGcloudInstallation() {
+  async function checkGcloudInstallation(cancelled = false) {
     try {
       // If path is configured, use it; otherwise auto-detect
       let pathToUse = CONFIGURED_GCLOUD_PATH;
@@ -123,6 +131,7 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
       if (!pathToUse) {
         // Auto-detect gcloud path
         const detectedPath = await detectGcloudPath();
+        if (cancelled) return;
         if (detectedPath) {
           pathToUse = detectedPath;
           setGcloudPath(detectedPath);
@@ -140,17 +149,21 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
               ? "Download from cloud.google.com/sdk/docs/install"
               : `Install via: ${instructions.command}`;
 
-        setIsLoading(false);
-        setError(`Google Cloud SDK not found. ${message}`);
+        if (!cancelled) {
+          setIsLoading(false);
+          setError(`Google Cloud SDK not found. ${message}`);
+        }
         return;
       }
 
       // Quote path if it contains spaces
       const quotedPath = pathToUse.includes(" ") ? `"${pathToUse}"` : pathToUse;
-      await execPromise(`${quotedPath} --version`);
+      await execPromise(`${quotedPath} --version`, { timeout: 10000 });
+      if (cancelled) return;
       setGcloudPath(pathToUse);
-      checkAuthStatus(pathToUse);
+      checkAuthStatus(pathToUse, cancelled);
     } catch {
+      if (cancelled) return;
       const instructions = getInstallInstructions();
       setIsLoading(false);
       setError(
@@ -159,14 +172,16 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
     }
   }
 
-  async function checkAuthStatus(pathToUse: string) {
+  async function checkAuthStatus(pathToUse: string, cancelled = false) {
     setIsLoading(true);
     const quotedPath = pathToUse.includes(" ") ? `"${pathToUse}"` : pathToUse;
 
     try {
       const { stdout } = await execPromise(
         `${quotedPath} auth list --format="value(account)" --filter="status=ACTIVE"`,
+        { timeout: 15000 },
       );
+      if (cancelled) return;
 
       if (stdout.trim()) {
         setIsAuthenticated(true);
@@ -184,12 +199,13 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
         setIsLoading(false);
       }
     } catch (err) {
+      if (cancelled) return;
       setIsAuthenticated(false);
       setIsLoading(false);
     }
   }
 
-  async function loadServiceCounts(projectId: string) {
+  async function loadServiceCounts(projectId: string, cancelled = false) {
     // Check cache first
     const cached = CacheManager.getServiceCounts(projectId);
     if (cached) {
@@ -200,6 +216,7 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
     setIsLoadingCounts(true);
     try {
       const counts = await fetchResourceCounts(gcloudPath, projectId);
+      if (cancelled) return;
       const countsWithTimestamp: ServiceCounts = { ...counts, timestamp: Date.now() };
       CacheManager.saveServiceCounts(projectId, counts);
       setServiceCounts(countsWithTimestamp);
@@ -207,7 +224,7 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
       console.error("Failed to load service counts:", err);
       // Don't show error toast - counts are non-critical
     } finally {
-      setIsLoadingCounts(false);
+      if (!cancelled) setIsLoadingCounts(false);
     }
   }
 
@@ -252,7 +269,7 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
     const toast = await showToast({ style: Toast.Style.Animated, title: "Logging out..." });
     const quotedPath = gcloudPath.includes(" ") ? `"${gcloudPath}"` : gcloudPath;
     try {
-      await execPromise(`${quotedPath} auth revoke --all --quiet`);
+      await execPromise(`${quotedPath} auth revoke --all --quiet`, { timeout: 15000 });
       CacheManager.clearAuthCache();
       CacheManager.clearProjectCache();
       setIsAuthenticated(false);

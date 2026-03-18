@@ -15,8 +15,10 @@ jest.mock("../gcloud", () => ({
 
 // Mock child_process.exec as a proper callback-based function so that
 // util.promisify(exec) works naturally. Default: success with empty output.
+// Handles both (cmd, cb) and (cmd, opts, cb) signatures.
 jest.mock("child_process", () => ({
-  exec: jest.fn((_cmd: string, cb: (err: Error | null, result: { stdout: string; stderr: string }) => void) => {
+  exec: jest.fn((...args: unknown[]) => {
+    const cb = args[args.length - 1] as (err: Error | null, result: { stdout: string; stderr: string }) => void;
     cb(null, { stdout: "", stderr: "" });
   }),
 }));
@@ -28,11 +30,10 @@ describe("ConfigurationsService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Reset exec to default success behavior
-    mockExec.mockImplementation(
-      (_cmd: string, cb: (err: Error | null, result: { stdout: string; stderr: string }) => void) => {
-        cb(null, { stdout: "", stderr: "" });
-      },
-    );
+    mockExec.mockImplementation((...args: unknown[]) => {
+      const cb = args[args.length - 1] as Function;
+      cb(null, { stdout: "", stderr: "" });
+    });
   });
 
   // ─── listConfigurations ──────────────────────────────────────────
@@ -90,11 +91,12 @@ describe("ConfigurationsService", () => {
   // ─── activateConfiguration ──────────────────────────────────────
 
   describe("activateConfiguration", () => {
-    it("runs the correct activate command", async () => {
+    it("runs the correct activate command with timeout", async () => {
       await activateConfiguration("/usr/bin/gcloud", "dev-config");
 
       expect(mockExec).toHaveBeenCalledWith(
         "/usr/bin/gcloud config configurations activate dev-config",
+        expect.objectContaining({ timeout: 15000 }),
         expect.any(Function),
       );
     });
@@ -104,12 +106,14 @@ describe("ConfigurationsService", () => {
 
       expect(mockExec).toHaveBeenCalledWith(
         '"/path with spaces/gcloud" config configurations activate my-config',
+        expect.objectContaining({ timeout: 15000 }),
         expect.any(Function),
       );
     });
 
     it("propagates errors", async () => {
-      mockExec.mockImplementation((_cmd: string, cb: Function) => {
+      mockExec.mockImplementation((...args: unknown[]) => {
+        const cb = args[args.length - 1] as Function;
         cb(new Error("Configuration does not exist"), null);
       });
 
@@ -122,11 +126,12 @@ describe("ConfigurationsService", () => {
   // ─── deleteConfiguration ────────────────────────────────────────
 
   describe("deleteConfiguration", () => {
-    it("runs the correct delete command with --quiet", async () => {
+    it("runs the correct delete command with --quiet and timeout", async () => {
       await deleteConfiguration("/usr/bin/gcloud", "old-config");
 
       expect(mockExec).toHaveBeenCalledWith(
         "/usr/bin/gcloud config configurations delete old-config --quiet",
+        expect.objectContaining({ timeout: 15000 }),
         expect.any(Function),
       );
     });
@@ -136,12 +141,14 @@ describe("ConfigurationsService", () => {
 
       expect(mockExec).toHaveBeenCalledWith(
         '"/path with spaces/gcloud" config configurations delete old-config --quiet',
+        expect.objectContaining({ timeout: 15000 }),
         expect.any(Function),
       );
     });
 
     it("propagates errors", async () => {
-      mockExec.mockImplementation((_cmd: string, cb: Function) => {
+      mockExec.mockImplementation((...args: unknown[]) => {
+        const cb = args[args.length - 1] as Function;
         cb(new Error("Cannot delete active configuration"), null);
       });
 
@@ -165,21 +172,25 @@ describe("ConfigurationsService", () => {
       expect(mockExec).toHaveBeenNthCalledWith(
         1,
         "/usr/bin/gcloud config configurations create test-config",
+        expect.objectContaining({ timeout: 15000 }),
         expect.any(Function),
       );
       expect(mockExec).toHaveBeenNthCalledWith(
         2,
         "/usr/bin/gcloud config set project my-project --configuration=test-config",
+        expect.objectContaining({ timeout: 15000 }),
         expect.any(Function),
       );
       expect(mockExec).toHaveBeenNthCalledWith(
         3,
         "/usr/bin/gcloud config set account user@example.com --configuration=test-config",
+        expect.objectContaining({ timeout: 15000 }),
         expect.any(Function),
       );
       expect(mockExec).toHaveBeenNthCalledWith(
         4,
         "/usr/bin/gcloud config set compute/region us-central1 --configuration=test-config",
+        expect.objectContaining({ timeout: 15000 }),
         expect.any(Function),
       );
     });
@@ -190,6 +201,7 @@ describe("ConfigurationsService", () => {
       expect(mockExec).toHaveBeenCalledTimes(1);
       expect(mockExec).toHaveBeenCalledWith(
         "/usr/bin/gcloud config configurations create minimal-config",
+        expect.objectContaining({ timeout: 15000 }),
         expect.any(Function),
       );
     });
@@ -204,16 +216,19 @@ describe("ConfigurationsService", () => {
       expect(mockExec).toHaveBeenNthCalledWith(
         1,
         "/usr/bin/gcloud config configurations create partial-config",
+        expect.objectContaining({ timeout: 15000 }),
         expect.any(Function),
       );
       expect(mockExec).toHaveBeenNthCalledWith(
         2,
         "/usr/bin/gcloud config set project my-project --configuration=partial-config",
+        expect.objectContaining({ timeout: 15000 }),
         expect.any(Function),
       );
       expect(mockExec).toHaveBeenNthCalledWith(
         3,
         "/usr/bin/gcloud config set compute/region us-west1 --configuration=partial-config",
+        expect.objectContaining({ timeout: 15000 }),
         expect.any(Function),
       );
     });
@@ -226,17 +241,20 @@ describe("ConfigurationsService", () => {
       expect(mockExec).toHaveBeenNthCalledWith(
         1,
         '"/path with spaces/gcloud" config configurations create test',
+        expect.objectContaining({ timeout: 15000 }),
         expect.any(Function),
       );
       expect(mockExec).toHaveBeenNthCalledWith(
         2,
         '"/path with spaces/gcloud" config set project proj --configuration=test',
+        expect.objectContaining({ timeout: 15000 }),
         expect.any(Function),
       );
     });
 
     it("propagates errors during creation", async () => {
-      mockExec.mockImplementation((_cmd: string, cb: Function) => {
+      mockExec.mockImplementation((...args: unknown[]) => {
+        const cb = args[args.length - 1] as Function;
         cb(new Error("Configuration already exists"), null);
       });
 
@@ -249,7 +267,8 @@ describe("ConfigurationsService", () => {
 
     it("propagates errors during property setting", async () => {
       let callCount = 0;
-      mockExec.mockImplementation((_cmd: string, cb: Function) => {
+      mockExec.mockImplementation((...args: unknown[]) => {
+        const cb = args[args.length - 1] as Function;
         callCount++;
         if (callCount === 1) {
           cb(null, { stdout: "", stderr: "" }); // create succeeds

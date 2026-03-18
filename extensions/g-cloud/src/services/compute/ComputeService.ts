@@ -183,7 +183,7 @@ export class ComputeService {
       if (!zone && this.hasCachedZoneInstances()) {
         const combinedInstances = this.getCombinedCachedInstances();
         if (combinedInstances.length > 0) {
-          setTimeout(() => this.refreshInstancesInBackground(), 100);
+          setTimeout(() => this.refreshInstancesInBackground().catch(() => {}), 100);
           return combinedInstances;
         }
       }

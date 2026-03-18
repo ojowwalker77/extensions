@@ -399,11 +399,9 @@ export class ServiceHubService {
         return (cachedList.data as string[]).includes(serviceName);
       }
 
-      const command = `services list --filter=name:${serviceName} --filter=state:ENABLED --format=json`;
-      const result = await executeGcloudCommand(this.gcloudPath, command, this.projectId);
-
-      const services = typeof result === "string" ? JSON.parse(result) : result;
-      const isEnabled = services && services.length > 0;
+      // Populate the full enabled services list instead of per-service API call (avoids N+1)
+      const enabledServices = await this.getEnabledServices();
+      const isEnabled = enabledServices.includes(serviceName);
 
       this.cache.set(detailsCacheKey, {
         data: {

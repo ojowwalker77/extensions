@@ -11,6 +11,7 @@ import {
   Form,
   confirmAlert,
   Alert,
+  getPreferenceValues,
 } from "@raycast/api";
 import { useState, useEffect } from "react";
 import {
@@ -27,6 +28,9 @@ import { initializeQuickLink } from "../../utils/QuickLinks";
 import { LogsView } from "../logs-service";
 import { ApiErrorView } from "../../components/ApiErrorView";
 import { CloudShellAction } from "../../components/CloudShellAction";
+import { friendlyErrorMessage } from "../../utils/errorMessages";
+
+const defaultRegion = getPreferenceValues<{ defaultRegion?: string }>().defaultRegion || "us-central1";
 
 const CLOUD_RUN_REGIONS = [
   { value: "us-central1", title: "Iowa (us-central1)" },
@@ -95,7 +99,8 @@ export default function CloudRunView({ projectId, gcloudPath }: CloudRunViewProp
       }
     } catch (err) {
       console.error("Error fetching Cloud Run services:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch services");
+      const friendly = friendlyErrorMessage(err, "Failed to fetch services");
+      setError(friendly.message);
     } finally {
       setIsLoading(false);
     }
@@ -586,7 +591,7 @@ function CreateServiceForm({ projectId, gcloudPath, onCreated }: CreateServiceFo
         info="Full path to your container image"
       />
 
-      <Form.Dropdown id="region" title="Region" defaultValue="us-central1">
+      <Form.Dropdown id="region" title="Region" defaultValue={defaultRegion}>
         {CLOUD_RUN_REGIONS.map((region) => (
           <Form.Dropdown.Item key={region.value} value={region.value} title={region.title} />
         ))}

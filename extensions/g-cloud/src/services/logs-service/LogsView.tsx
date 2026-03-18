@@ -4,6 +4,7 @@ import { listLogEntries, LogEntry, LogSeverity, LOG_RESOURCE_TYPES } from "../..
 import { initializeQuickLink } from "../../utils/QuickLinks";
 import { ApiErrorView } from "../../components/ApiErrorView";
 import { CloudShellAction } from "../../components/CloudShellAction";
+import { friendlyErrorMessage } from "../../utils/errorMessages";
 
 interface LogsViewProps {
   projectId: string;
@@ -20,6 +21,32 @@ const SEVERITY_LEVELS: { value: LogSeverity | ""; label: string; color: Color; i
   { value: "ERROR", label: "Error", color: Color.Red, icon: Icon.XMarkCircle },
   { value: "CRITICAL", label: "Critical", color: Color.Purple, icon: Icon.Warning },
 ];
+
+function getSeverityIcon(sev?: LogSeverity): { source: Icon; tintColor: Color } {
+  switch (sev) {
+    case "DEBUG":
+      return { source: Icon.Bug, tintColor: Color.SecondaryText };
+    case "INFO":
+      return { source: Icon.Info, tintColor: Color.Green };
+    case "NOTICE":
+      return { source: Icon.Bell, tintColor: Color.Blue };
+    case "WARNING":
+      return { source: Icon.ExclamationMark, tintColor: Color.Yellow };
+    case "ERROR":
+      return { source: Icon.XMarkCircle, tintColor: Color.Red };
+    case "CRITICAL":
+    case "ALERT":
+    case "EMERGENCY":
+      return { source: Icon.Warning, tintColor: Color.Purple };
+    default:
+      return { source: Icon.Dot, tintColor: Color.SecondaryText };
+  }
+}
+
+function truncate(text: string, maxLen: number = 50): string {
+  const clean = text.replace(/\s+/g, " ").trim();
+  return clean.length > maxLen ? clean.slice(0, maxLen) + "..." : clean;
+}
 
 export default function LogsView({ projectId, gcloudPath, initialResourceType }: LogsViewProps) {
   const [isLoading, setIsLoading] = useState(true);
@@ -38,7 +65,12 @@ export default function LogsView({ projectId, gcloudPath, initialResourceType }:
       const response = await listLogEntries(gcloudPath, projectId, {
         severity: severity || undefined,
         resourceType: resourceType || undefined,
-        filter: searchText ? `textPayload=~"${searchText}" OR jsonPayload.message=~"${searchText}"` : undefined,
+        filter: searchText
+          ? (() => {
+              const escaped = searchText.replace(/[\\"]/g, "\\$&");
+              return `textPayload=~"${escaped}" OR jsonPayload.message=~"${escaped}"`;
+            })()
+          : undefined,
         pageSize: 100,
       });
 
@@ -52,7 +84,8 @@ export default function LogsView({ projectId, gcloudPath, initialResourceType }:
       });
     } catch (err) {
       console.error("Error fetching logs:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch logs");
+      const friendly = friendlyErrorMessage(err, "Failed to fetch logs");
+      setError(friendly.message);
     } finally {
       setIsLoading(false);
     }
@@ -66,32 +99,7 @@ export default function LogsView({ projectId, gcloudPath, initialResourceType }:
     fetchLogs();
   }, [severity, resourceType]);
 
-  function getSeverityIcon(sev?: LogSeverity): { source: Icon; tintColor: Color } {
-    switch (sev) {
-      case "DEBUG":
-        return { source: Icon.Bug, tintColor: Color.SecondaryText };
-      case "INFO":
-        return { source: Icon.Info, tintColor: Color.Green };
-      case "NOTICE":
-        return { source: Icon.Bell, tintColor: Color.Blue };
-      case "WARNING":
-        return { source: Icon.ExclamationMark, tintColor: Color.Yellow };
-      case "ERROR":
-        return { source: Icon.XMarkCircle, tintColor: Color.Red };
-      case "CRITICAL":
-      case "ALERT":
-      case "EMERGENCY":
-        return { source: Icon.Warning, tintColor: Color.Purple };
-      default:
-        return { source: Icon.Dot, tintColor: Color.SecondaryText };
-    }
-  }
 
-  function truncate(text: string, maxLen: number = 50): string {
-    // Remove newlines and extra whitespace, then truncate
-    const clean = text.replace(/\s+/g, " ").trim();
-    return clean.length > maxLen ? clean.slice(0, maxLen) + "..." : clean;
-  }
 
   function getLogMessage(entry: LogEntry): string {
     if (entry.textPayload) {

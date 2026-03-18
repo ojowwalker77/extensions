@@ -13,6 +13,7 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import { GCloudConfig } from "./types";
 import { listConfigurations, activateConfiguration, deleteConfiguration } from "./ConfigurationsService";
+import { friendlyErrorMessage } from "../../utils/errorMessages";
 import { CreateConfigForm } from "./components/CreateConfigForm";
 import { DuplicateConfigForm } from "./components/DuplicateConfigForm";
 import { ConfigurationDetailView } from "./components/ConfigurationDetailView";
@@ -36,11 +37,8 @@ export function ConfigurationsView({ gcloudPath, onSwitchAccount, onClearCache, 
       const result = await listConfigurations(gcloudPath);
       setConfigs(result);
     } catch (error) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Failed to load configurations",
-        message: error instanceof Error ? error.message : String(error),
-      });
+      const friendly = friendlyErrorMessage(error, "Failed to load configurations");
+      await showToast({ style: Toast.Style.Failure, title: friendly.title, message: friendly.message });
     } finally {
       setIsLoading(false);
     }
@@ -59,9 +57,10 @@ export function ConfigurationsView({ gcloudPath, onSwitchAccount, onClearCache, 
       toast.title = `Activated ${config.name}`;
       await loadConfigs();
     } catch (error) {
+      const friendly = friendlyErrorMessage(error, "Failed to activate configuration");
       toast.style = Toast.Style.Failure;
-      toast.title = "Failed to activate configuration";
-      toast.message = error instanceof Error ? error.message : String(error);
+      toast.title = friendly.title;
+      toast.message = friendly.message;
     }
   }
 
@@ -79,9 +78,10 @@ export function ConfigurationsView({ gcloudPath, onSwitchAccount, onClearCache, 
       toast.title = `Deleted ${config.name}`;
       await loadConfigs();
     } catch (error) {
+      const friendly = friendlyErrorMessage(error, "Failed to delete configuration");
       toast.style = Toast.Style.Failure;
-      toast.title = "Failed to delete configuration";
-      toast.message = error instanceof Error ? error.message : String(error);
+      toast.title = friendly.title;
+      toast.message = friendly.message;
     }
   }
 
@@ -130,7 +130,7 @@ export function ConfigurationsView({ gcloudPath, onSwitchAccount, onClearCache, 
                   <Action
                     title="Activate Configuration"
                     icon={Icon.CheckCircle}
-                    shortcut={{ modifiers: ["cmd"], key: "a" }}
+                    shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
                     onAction={() => handleActivate(config)}
                   />
                 )}
@@ -157,7 +157,7 @@ export function ConfigurationsView({ gcloudPath, onSwitchAccount, onClearCache, 
                     title="Delete Configuration"
                     icon={Icon.Trash}
                     style={Action.Style.Destructive}
-                    shortcut={{ modifiers: ["cmd"], key: "delete" }}
+                    shortcut={{ modifiers: ["cmd", "shift"], key: "x" }}
                     onAction={() => handleDelete(config)}
                   />
                 )}

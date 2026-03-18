@@ -1,6 +1,9 @@
-import { ActionPanel, Action, Form, showToast, Toast, useNavigation } from "@raycast/api";
+import { ActionPanel, Action, Form, showToast, Toast, useNavigation, getPreferenceValues } from "@raycast/api";
 import { useState } from "react";
 import { createConfiguration } from "../ConfigurationsService";
+import { friendlyErrorMessage } from "../../../utils/errorMessages";
+
+const defaultRegion = getPreferenceValues<{ defaultRegion?: string }>().defaultRegion || "us-central1";
 
 interface Props {
   gcloudPath: string;
@@ -16,6 +19,10 @@ export function CreateConfigForm({ gcloudPath, onCreated }: Props) {
       setNameError("Configuration name is required");
       return;
     }
+    if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(values.name)) {
+      setNameError("Name must start with a letter and contain only letters, numbers, hyphens, underscores");
+      return;
+    }
     try {
       await createConfiguration(gcloudPath, values.name, {
         project: values.project || undefined,
@@ -26,11 +33,8 @@ export function CreateConfigForm({ gcloudPath, onCreated }: Props) {
       onCreated();
       pop();
     } catch (error) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Failed to create configuration",
-        message: error instanceof Error ? error.message : String(error),
-      });
+      const friendly = friendlyErrorMessage(error, "Failed to create configuration");
+      await showToast({ style: Toast.Style.Failure, title: friendly.title, message: friendly.message });
     }
   }
 
@@ -54,7 +58,7 @@ export function CreateConfigForm({ gcloudPath, onCreated }: Props) {
       />
       <Form.TextField id="project" title="Project ID" placeholder="my-gcp-project" />
       <Form.TextField id="account" title="Account Email" placeholder="user@example.com" />
-      <Form.TextField id="region" title="Region" placeholder="us-central1" defaultValue="us-central1" />
+      <Form.TextField id="region" title="Region" placeholder={defaultRegion} defaultValue={defaultRegion} />
     </Form>
   );
 }

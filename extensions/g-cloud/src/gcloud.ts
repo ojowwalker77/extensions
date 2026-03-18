@@ -8,6 +8,7 @@ interface GCloudProject extends Omit<Project, "createTime"> {
 }
 
 const execPromise = promisify(exec);
+const EXEC_TIMEOUT = 15000; // 15s timeout for direct exec calls
 
 interface CommandCacheEntry<T> {
   result: T;
@@ -20,10 +21,26 @@ interface TimeoutPromise {
 }
 
 // Global cache for command results to reduce API calls
+const MAX_CACHE_SIZE = 200;
 const commandCache = new Map<string, CommandCacheEntry<unknown>>();
 const COMMAND_CACHE_TTL = 600000; // 10 minutes cache TTL
 const PROJECTS_CACHE_TTL = 1800000; // 30 minutes cache TTL
 const pendingRequests = new Map<string, Promise<unknown>>();
+
+/** Evict oldest entries when cache exceeds max size */
+function evictCacheIfNeeded() {
+  if (commandCache.size <= MAX_CACHE_SIZE) return;
+  // Map iteration order is insertion order; find oldest by timestamp
+  let oldestKey: string | null = null;
+  let oldestTime = Infinity;
+  for (const [key, entry] of commandCache) {
+    if (entry.timestamp < oldestTime) {
+      oldestTime = entry.timestamp;
+      oldestKey = key;
+    }
+  }
+  if (oldestKey) commandCache.delete(oldestKey);
+}
 
 /**
  * Executes a gcloud command and returns the result as JSON
@@ -109,9 +126,9 @@ export async function executeGcloudCommand(
 
     try {
       const result = await requestPromise;
-      clearTimeout(timeoutPromise.timeoutId);
       return result;
     } finally {
+      clearTimeout(timeoutPromise.timeoutId);
       pendingRequests.delete(cacheKey);
     }
   } catch (error: unknown) {
@@ -157,34 +174,39 @@ async function executeCommand(
       }
     }
 
+    // If stderr has content but not a recognized warning, and stdout is empty, treat as error
+    if (stderr && stderr.trim() !== "" && (!stdout || stdout.trim() === "")) {
+      console.error(`Command stderr (no stdout): ${stderr.substring(0, 300)}`);
+    }
+
     if (!stdout || stdout.trim() === "") {
+      evictCacheIfNeeded();
       commandCache.set(cacheKey, { result: [], timestamp: Date.now() });
       return [];
     }
 
+    let result: unknown;
     try {
-      const result = JSON.parse(stdout);
-
-      const expectsArray =
-        fullCommand.includes("list") || (fullCommand.endsWith("--format=json") && fullCommand.includes("list"));
-
-      if (expectsArray && !Array.isArray(result)) {
-        const parsedResult = [result];
-        commandCache.set(cacheKey, { result: parsedResult, timestamp: Date.now() });
-        return parsedResult;
-      }
-
-      const parsedResult = Array.isArray(result) ? result : [result];
-      commandCache.set(cacheKey, { result: parsedResult, timestamp: Date.now() });
-      return parsedResult;
-    } catch (error) {
-      console.error(`Error parsing JSON: ${error}`);
+      result = JSON.parse(stdout);
+    } catch (parseError) {
+      console.error(`Error parsing JSON: ${parseError}`);
       console.error(`Raw output: ${stdout.substring(0, 200)}...`);
-      throw new Error(`Failed to parse command output as JSON: ${error}`);
+      // Return empty array instead of crashing — caller sees "no results" and can retry
+      return [];
     }
+
+    const expectsArray =
+      fullCommand.includes("list") || (fullCommand.endsWith("--format=json") && fullCommand.includes("list"));
+
+    const parsedResult =
+      expectsArray && !Array.isArray(result) ? [result] : Array.isArray(result) ? result : [result];
+
+    evictCacheIfNeeded();
+    commandCache.set(cacheKey, { result: parsedResult, timestamp: Date.now() });
+    return parsedResult;
   } catch (error: unknown) {
     if (currentRetry < maxRetries) {
-      const backoffMs = 1000 * Math.pow(2, currentRetry);
+      const backoffMs = 1000 * Math.pow(2, currentRetry) * (0.5 + Math.random());
       await new Promise((resolve) => setTimeout(resolve, backoffMs));
       return executeCommand(fullCommand, cacheKey, maxRetries, currentRetry + 1);
     }
@@ -216,7 +238,9 @@ export function clearCommandCache(pattern?: RegExp) {
 export async function isAuthenticated(gcloudPath: string): Promise<boolean> {
   try {
     const quotedPath = quotePath(gcloudPath);
-    const { stdout } = await execPromise(`${quotedPath} auth list --format="value(account)" --filter="status=ACTIVE"`);
+    const { stdout } = await execPromise(`${quotedPath} auth list --format="value(account)" --filter="status=ACTIVE"`, {
+      timeout: EXEC_TIMEOUT,
+    });
     return stdout.trim() !== "";
   } catch (error) {
     console.error("Error checking authentication status:", error);
@@ -232,7 +256,7 @@ export async function isAuthenticated(gcloudPath: string): Promise<boolean> {
 export async function authenticateWithBrowser(gcloudPath: string): Promise<void> {
   try {
     const quotedPath = quotePath(gcloudPath);
-    await execPromise(`${quotedPath} auth login --launch-browser`);
+    await execPromise(`${quotedPath} auth login --launch-browser`, { timeout: 120000 });
   } catch (error) {
     console.error("Error during browser authentication:", error);
     throw error;
@@ -261,7 +285,7 @@ export async function getProjects(gcloudPath: string): Promise<Project[]> {
       return cachedResult.result as Project[];
     }
 
-    const { stdout } = await execPromise(`${quotedPath} projects list --format=json`);
+    const { stdout } = await execPromise(`${quotedPath} projects list --format=json`, { timeout: 30000 });
 
     if (!stdout || stdout.trim() === "") {
       return [];
@@ -296,6 +320,7 @@ export async function getProjects(gcloudPath: string): Promise<Project[]> {
       })
       .filter((project): project is GCloudProject => project !== null);
 
+    evictCacheIfNeeded();
     commandCache.set(cacheKey, { result: mappedProjects, timestamp: now });
 
     return mappedProjects;

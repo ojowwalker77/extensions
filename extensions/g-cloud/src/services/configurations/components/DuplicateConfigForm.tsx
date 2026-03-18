@@ -2,6 +2,7 @@ import { ActionPanel, Action, Form, showToast, Toast, useNavigation } from "@ray
 import { useState, useEffect } from "react";
 import { GCloudConfig } from "../types";
 import { createConfiguration } from "../ConfigurationsService";
+import { friendlyErrorMessage } from "../../../utils/errorMessages";
 
 interface Props {
   gcloudPath: string;
@@ -31,6 +32,10 @@ export function DuplicateConfigForm({ gcloudPath, configs, onCreated }: Props) {
       setNameError("New configuration name is required");
       return;
     }
+    if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(values.newName)) {
+      setNameError("Name must start with a letter and contain only letters, numbers, hyphens, underscores");
+      return;
+    }
     try {
       await createConfiguration(gcloudPath, values.newName, {
         project: values.project || undefined,
@@ -45,11 +50,8 @@ export function DuplicateConfigForm({ gcloudPath, configs, onCreated }: Props) {
       onCreated();
       pop();
     } catch (error) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Failed to duplicate configuration",
-        message: error instanceof Error ? error.message : String(error),
-      });
+      const friendly = friendlyErrorMessage(error, "Failed to duplicate configuration");
+      await showToast({ style: Toast.Style.Failure, title: friendly.title, message: friendly.message });
     }
   }
 
