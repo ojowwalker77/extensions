@@ -3,7 +3,7 @@ import { useState } from "react";
 import { createConfiguration } from "../ConfigurationsService";
 import { friendlyErrorMessage } from "../../../utils/errorMessages";
 
-const defaultRegion = getPreferenceValues<{ defaultRegion?: string }>().defaultRegion || "us-central1";
+const defaultRegion = getPreferenceValues<Preferences>().defaultRegion || "us-central1";
 
 interface Props {
   gcloudPath: string;

@@ -30,7 +30,7 @@ import { ApiErrorView } from "../../components/ApiErrorView";
 import { CloudShellAction } from "../../components/CloudShellAction";
 import { friendlyErrorMessage } from "../../utils/errorMessages";
 
-const defaultRegion = getPreferenceValues<{ defaultRegion?: string }>().defaultRegion || "us-central1";
+const defaultRegion = getPreferenceValues<Preferences>().defaultRegion || "us-central1";
 
 const CLOUD_RUN_REGIONS = [
   { value: "us-central1", title: "Iowa (us-central1)" },

@@ -29,17 +29,18 @@ const pendingRequests = new Map<string, Promise<unknown>>();
 
 /** Evict oldest entries when cache exceeds max size */
 function evictCacheIfNeeded() {
-  if (commandCache.size <= MAX_CACHE_SIZE) return;
-  // Map iteration order is insertion order; find oldest by timestamp
-  let oldestKey: string | null = null;
-  let oldestTime = Infinity;
-  for (const [key, entry] of commandCache) {
-    if (entry.timestamp < oldestTime) {
-      oldestTime = entry.timestamp;
-      oldestKey = key;
+  while (commandCache.size > MAX_CACHE_SIZE) {
+    let oldestKey: string | null = null;
+    let oldestTime = Infinity;
+    for (const [key, entry] of commandCache) {
+      if (entry.timestamp < oldestTime) {
+        oldestTime = entry.timestamp;
+        oldestKey = key;
+      }
     }
+    if (oldestKey) commandCache.delete(oldestKey);
+    else break;
   }
-  if (oldestKey) commandCache.delete(oldestKey);
 }
 
 /**

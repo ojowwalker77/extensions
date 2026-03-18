@@ -10,7 +10,6 @@ import {
   useNavigation,
   open,
   getPreferenceValues,
-  Application,
 } from "@raycast/api";
 import { useState, useEffect, useCallback } from "react";
 import { listLogEntries, LogEntry, LogSeverity, LOG_RESOURCE_TYPES } from "../../utils/gcpApi";
@@ -22,7 +21,7 @@ import { tmpdir } from "os";
 import { writeFileSync, unlinkSync } from "fs";
 import { join } from "path";
 
-const preferredIDE = getPreferenceValues<{ preferredIDE?: Application }>().preferredIDE;
+const preferredIDE = getPreferenceValues<Preferences>().preferredIDE;
 
 interface LogsViewProps {
   projectId: string;

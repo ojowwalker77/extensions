@@ -33,12 +33,8 @@ import { CloudShellAction } from "./components/CloudShellAction";
 
 const execPromise = promisify(exec);
 
-interface ExtensionPreferences {
-  gcloudPath: string;
-}
-
 // Get configured path (may be empty for auto-detection)
-const CONFIGURED_GCLOUD_PATH = getPreferenceValues<ExtensionPreferences>().gcloudPath;
+const CONFIGURED_GCLOUD_PATH = getPreferenceValues<Preferences>().gcloudPath;
 
 type ViewMode = "hub" | "compute" | "storage" | "iam" | "network" | "secrets" | "cloudrun" | "cloudfunctions" | "logs";
 

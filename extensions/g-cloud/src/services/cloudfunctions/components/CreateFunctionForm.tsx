@@ -3,7 +3,7 @@ import { useState } from "react";
 import { spawn } from "child_process";
 import { RUNTIMES, MEMORY_OPTIONS, CLOUD_FUNCTIONS_REGIONS } from "../types";
 
-const defaultRegion = getPreferenceValues<{ defaultRegion?: string }>().defaultRegion || "us-central1";
+const defaultRegion = getPreferenceValues<Preferences>().defaultRegion || "us-central1";
 
 interface CreateFunctionFormProps {
   projectId: string;

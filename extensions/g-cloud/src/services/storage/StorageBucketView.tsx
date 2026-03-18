@@ -39,7 +39,7 @@ interface Bucket {
   created: string;
 }
 
-const defaultRegion = getPreferenceValues<{ defaultRegion?: string }>().defaultRegion || "us-central1";
+const defaultRegion = getPreferenceValues<Preferences>().defaultRegion || "us-central1";
 
 export default function StorageBucketView({ projectId, gcloudPath }: StorageBucketViewProps) {
   const [isLoading, setIsLoading] = useState(true);

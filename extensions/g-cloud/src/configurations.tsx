@@ -4,12 +4,9 @@ import { detectGcloudPath, getInstallInstructions, getPlatform } from "./utils/g
 import { CacheManager } from "./utils/CacheManager";
 import DoctorView from "./components/DoctorView";
 import { ConfigurationsView } from "./services/configurations";
+import { revokeAllAuth } from "./services/configurations/ConfigurationsService";
 
-interface ExtensionPreferences {
-  gcloudPath: string;
-}
-
-const CONFIGURED_GCLOUD_PATH = getPreferenceValues<ExtensionPreferences>().gcloudPath;
+const CONFIGURED_GCLOUD_PATH = getPreferenceValues<Preferences>().gcloudPath;
 
 export default function ConfigurationsCommand() {
   const [gcloudPath, setGcloudPath] = useState<string>(CONFIGURED_GCLOUD_PATH || "");
@@ -66,13 +63,9 @@ export default function ConfigurationsCommand() {
     <ConfigurationsView
       gcloudPath={gcloudPath}
       onSwitchAccount={async () => {
-        const { exec } = await import("child_process");
-        const { promisify } = await import("util");
-        const execPromise = promisify(exec);
-        const quotedPath = gcloudPath.includes(" ") ? `"${gcloudPath}"` : gcloudPath;
         const toast = await showToast({ style: Toast.Style.Animated, title: "Logging out..." });
         try {
-          await execPromise(`${quotedPath} auth revoke --all --quiet`);
+          await revokeAllAuth(gcloudPath);
           CacheManager.clearAuthCache();
           CacheManager.clearProjectCache();
           toast.style = Toast.Style.Success;
