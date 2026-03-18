@@ -1,0 +1,94 @@
+import { List, Icon, Color, showToast, Toast, useNavigation, getPreferenceValues } from "@raycast/api";
+import { useState, useEffect } from "react";
+import { detectGcloudPath, getInstallInstructions, getPlatform } from "./utils/gcloudDetect";
+import { CacheManager } from "./utils/CacheManager";
+import DoctorView from "./components/DoctorView";
+import { ConfigurationsView } from "./services/configurations";
+
+interface ExtensionPreferences {
+  gcloudPath: string;
+}
+
+const CONFIGURED_GCLOUD_PATH = getPreferenceValues<ExtensionPreferences>().gcloudPath;
+
+export default function ConfigurationsCommand() {
+  const [gcloudPath, setGcloudPath] = useState<string>(CONFIGURED_GCLOUD_PATH || "");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { push } = useNavigation();
+
+  useEffect(() => {
+    detectPath();
+  }, []);
+
+  async function detectPath() {
+    let pathToUse = CONFIGURED_GCLOUD_PATH;
+    if (!pathToUse) {
+      const detected = await detectGcloudPath();
+      if (detected) {
+        pathToUse = detected;
+      }
+    }
+    if (!pathToUse) {
+      const instructions = getInstallInstructions();
+      const platform = getPlatform();
+      const message =
+        platform === "macos"
+          ? `Install via: ${instructions.command}`
+          : platform === "windows"
+            ? "Download from cloud.google.com/sdk/docs/install"
+            : `Install via: ${instructions.command}`;
+      setError(`Google Cloud SDK not found. ${message}`);
+      setIsLoading(false);
+      return;
+    }
+    setGcloudPath(pathToUse);
+    setIsLoading(false);
+  }
+
+  if (isLoading) {
+    return <List isLoading={true} />;
+  }
+
+  if (error) {
+    return (
+      <List>
+        <List.EmptyView
+          title="Google Cloud SDK not found"
+          description={error}
+          icon={{ source: Icon.Warning, tintColor: Color.Red }}
+        />
+      </List>
+    );
+  }
+
+  return (
+    <ConfigurationsView
+      gcloudPath={gcloudPath}
+      onSwitchAccount={async () => {
+        const { exec } = await import("child_process");
+        const { promisify } = await import("util");
+        const execPromise = promisify(exec);
+        const quotedPath = gcloudPath.includes(" ") ? `"${gcloudPath}"` : gcloudPath;
+        const toast = await showToast({ style: Toast.Style.Animated, title: "Logging out..." });
+        try {
+          await execPromise(`${quotedPath} auth revoke --all --quiet`);
+          CacheManager.clearAuthCache();
+          CacheManager.clearProjectCache();
+          toast.style = Toast.Style.Success;
+          toast.title = "Logged out. Re-authenticate from the main Google Cloud command.";
+        } catch {
+          toast.style = Toast.Style.Failure;
+          toast.title = "Logout failed";
+        }
+      }}
+      onClearCache={() => {
+        CacheManager.clearAllCaches();
+        CacheManager.clearRecentResources();
+        showToast({ style: Toast.Style.Success, title: "Cache cleared" });
+      }}
+      onDoctor={() => push(<DoctorView configuredPath={CONFIGURED_GCLOUD_PATH} />)}
+      onRefreshAll={() => showToast({ style: Toast.Style.Success, title: "Refresh triggered — open the main command to reload counts" })}
+    />
+  );
+}

@@ -460,60 +460,6 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
         })}
       </List.Section>
 
-      {/* Settings Section */}
-      <List.Section title="Settings">
-        <List.Item
-          title="Refresh All"
-          subtitle="Reload service counts"
-          icon={{ source: Icon.RotateClockwise, tintColor: Color.Blue }}
-          actions={
-            <ActionPanel>
-              <Action title="Refresh" icon={Icon.RotateClockwise} onAction={refreshAll} />
-            </ActionPanel>
-          }
-        />
-        <List.Item
-          title="Switch Account"
-          subtitle="Log in with a different Google account"
-          icon={{ source: Icon.Person, tintColor: Color.Orange }}
-          actions={
-            <ActionPanel>
-              <Action title="Switch Account" icon={Icon.Person} onAction={loginWithDifferentAccount} />
-            </ActionPanel>
-          }
-        />
-        <List.Item
-          title="Clear Cache"
-          subtitle="Clear all cached data"
-          icon={{ source: Icon.Trash, tintColor: Color.Red }}
-          actions={
-            <ActionPanel>
-              <Action
-                title="Clear Cache"
-                icon={Icon.Trash}
-                style={Action.Style.Destructive}
-                onAction={() => {
-                  CacheManager.clearAllCaches();
-                  CacheManager.clearRecentResources();
-                  setRecentResources([]);
-                  setServiceCounts(null);
-                  showToast({ style: Toast.Style.Success, title: "Cache cleared" });
-                }}
-              />
-            </ActionPanel>
-          }
-        />
-        <List.Item
-          title="Doctor"
-          subtitle="Diagnose gcloud SDK configuration"
-          icon={{ source: Icon.Heartbeat, tintColor: Color.Green }}
-          actions={
-            <ActionPanel>
-              <Action title="Open Doctor" icon={Icon.Heartbeat} onAction={openDoctor} />
-            </ActionPanel>
-          }
-        />
-      </List.Section>
     </List>
   );
 }
