@@ -142,7 +142,11 @@ export class CacheManager {
     const recentlyUsedStr = cache.get(CACHE_KEYS.RECENTLY_USED_PROJECTS);
     let recentlyUsed: string[] = [];
     if (recentlyUsedStr) {
-      try { recentlyUsed = JSON.parse(recentlyUsedStr); } catch { recentlyUsed = []; }
+      try {
+        recentlyUsed = JSON.parse(recentlyUsedStr);
+      } catch {
+        recentlyUsed = [];
+      }
     }
 
     recentlyUsed = recentlyUsed.filter((id) => id !== projectId);

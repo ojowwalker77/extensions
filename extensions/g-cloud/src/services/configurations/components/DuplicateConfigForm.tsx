@@ -27,7 +27,13 @@ export function DuplicateConfigForm({ gcloudPath, configs, onCreated }: Props) {
     }
   }, [selectedConfig, configs]);
 
-  async function handleSubmit(values: { sourceConfig: string; newName: string; project: string; account: string; region: string }) {
+  async function handleSubmit(values: {
+    sourceConfig: string;
+    newName: string;
+    project: string;
+    account: string;
+    region: string;
+  }) {
     if (!values.newName) {
       setNameError("New configuration name is required");
       return;
@@ -63,12 +69,7 @@ export function DuplicateConfigForm({ gcloudPath, configs, onCreated }: Props) {
         </ActionPanel>
       }
     >
-      <Form.Dropdown
-        id="sourceConfig"
-        title="Source Configuration"
-        value={selectedConfig}
-        onChange={setSelectedConfig}
-      >
+      <Form.Dropdown id="sourceConfig" title="Source Configuration" value={selectedConfig} onChange={setSelectedConfig}>
         {configs.map((c) => (
           <Form.Dropdown.Item key={c.name} value={c.name} title={c.name} />
         ))}
@@ -83,7 +84,13 @@ export function DuplicateConfigForm({ gcloudPath, configs, onCreated }: Props) {
           if (!e.target.value?.length) setNameError("New configuration name is required");
         }}
       />
-      <Form.TextField id="project" title="Project ID" placeholder="my-gcp-project" value={project} onChange={setProject} />
+      <Form.TextField
+        id="project"
+        title="Project ID"
+        placeholder="my-gcp-project"
+        value={project}
+        onChange={setProject}
+      />
       <Form.TextField
         id="account"
         title="Account Email"

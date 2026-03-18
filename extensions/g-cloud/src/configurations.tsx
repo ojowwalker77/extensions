@@ -88,7 +88,9 @@ export default function ConfigurationsCommand() {
         showToast({ style: Toast.Style.Success, title: "Cache cleared" });
       }}
       onDoctor={() => push(<DoctorView configuredPath={CONFIGURED_GCLOUD_PATH} />)}
-      onRefreshAll={() => showToast({ style: Toast.Style.Success, title: "Refresh triggered — open the main command to reload counts" })}
+      onRefreshAll={() =>
+        showToast({ style: Toast.Style.Success, title: "Refresh triggered — open the main command to reload counts" })
+      }
     />
   );
 }

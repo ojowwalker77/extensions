@@ -476,7 +476,6 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
           );
         })}
       </List.Section>
-
     </List>
   );
 }

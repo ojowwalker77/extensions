@@ -198,8 +198,7 @@ async function executeCommand(
     const expectsArray =
       fullCommand.includes("list") || (fullCommand.endsWith("--format=json") && fullCommand.includes("list"));
 
-    const parsedResult =
-      expectsArray && !Array.isArray(result) ? [result] : Array.isArray(result) ? result : [result];
+    const parsedResult = expectsArray && !Array.isArray(result) ? [result] : Array.isArray(result) ? result : [result];
 
     evictCacheIfNeeded();
     commandCache.set(cacheKey, { result: parsedResult, timestamp: Date.now() });

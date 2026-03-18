@@ -20,11 +20,7 @@ export function friendlyErrorMessage(
     };
   }
 
-  if (
-    lower.includes("permission denied") ||
-    lower.includes("permission_denied") ||
-    lower.includes("403")
-  ) {
+  if (lower.includes("permission denied") || lower.includes("permission_denied") || lower.includes("403")) {
     return {
       title: "Permission Denied",
       message: "Check your IAM role on this project",
@@ -38,22 +34,14 @@ export function friendlyErrorMessage(
     };
   }
 
-  if (
-    lower.includes("not found") ||
-    lower.includes("does not exist") ||
-    lower.includes("404")
-  ) {
+  if (lower.includes("not found") || lower.includes("does not exist") || lower.includes("404")) {
     return {
       title: "Resource Not Found",
       message: "Verify the resource exists and you have access",
     };
   }
 
-  if (
-    lower.includes("quota") ||
-    lower.includes("resource_exhausted") ||
-    lower.includes("429")
-  ) {
+  if (lower.includes("quota") || lower.includes("resource_exhausted") || lower.includes("429")) {
     return {
       title: "Quota Exceeded",
       message: "Check your GCP quotas in the Cloud Console",

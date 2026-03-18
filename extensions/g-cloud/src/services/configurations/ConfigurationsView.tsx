@@ -94,7 +94,11 @@ export function ConfigurationsView({ gcloudPath, onSwitchAccount, onClearCache, 
   }
 
   return (
-    <List isLoading={isLoading} navigationTitle="Settings & Configuration" searchBarPlaceholder="Search configurations...">
+    <List
+      isLoading={isLoading}
+      navigationTitle="Settings & Configuration"
+      searchBarPlaceholder="Search configurations..."
+    >
       <List.Section title="Named Configurations" subtitle={`${configs.length} total`}>
         {configs.map((config) => (
           <List.Item
@@ -117,13 +121,7 @@ export function ConfigurationsView({ gcloudPath, onSwitchAccount, onClearCache, 
                   title="See Configuration"
                   icon={Icon.Eye}
                   onAction={() =>
-                    push(
-                      <ConfigurationDetailView
-                        config={config}
-                        gcloudPath={gcloudPath}
-                        onRefresh={loadConfigs}
-                      />,
-                    )
+                    push(<ConfigurationDetailView config={config} gcloudPath={gcloudPath} onRefresh={loadConfigs} />)
                   }
                 />
                 {!config.is_active && (

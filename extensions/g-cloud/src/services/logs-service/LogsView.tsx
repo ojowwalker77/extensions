@@ -153,10 +153,7 @@ export default function LogsView({ projectId, gcloudPath, initialResourceType }:
 
   useEffect(() => {
     fetchLogs();
-    // eslint-disable-next-line react-hooks/exhaustive-deps — fetchLogs omitted intentionally; search is manual (Enter key)
   }, [severity, resourceType, timeRange]);
-
-
 
   function getLogMessage(entry: LogEntry): string {
     if (entry.textPayload) {
@@ -307,11 +304,19 @@ ${JSON.stringify(entry.textPayload || entry.jsonPayload || entry.protoPayload ||
     try {
       writeFileSync(filePath, content, "utf-8");
       await open(filePath, preferredIDE);
-      await showToast({ style: Toast.Style.Success, title: `Opened in ${preferredIDE?.name || "editor"}`, message: `${logs.length} entries` });
+      await showToast({
+        style: Toast.Style.Success,
+        title: `Opened in ${preferredIDE?.name || "editor"}`,
+        message: `${logs.length} entries`,
+      });
 
       // Clean up temp file after 60s (gives the IDE time to read it)
       setTimeout(() => {
-        try { unlinkSync(filePath); } catch { /* already gone */ }
+        try {
+          unlinkSync(filePath);
+        } catch {
+          /* already gone */
+        }
       }, 60000);
     } catch (err) {
       await showToast({

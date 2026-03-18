@@ -58,21 +58,18 @@ export async function createConfiguration(
   }
 
   if (options.project) {
-    await execPromise(
-      `${quotedPath} config set project ${options.project} --configuration=${name}`,
-      { timeout: EXEC_TIMEOUT },
-    );
+    await execPromise(`${quotedPath} config set project ${options.project} --configuration=${name}`, {
+      timeout: EXEC_TIMEOUT,
+    });
   }
   if (options.account) {
-    await execPromise(
-      `${quotedPath} config set account ${options.account} --configuration=${name}`,
-      { timeout: EXEC_TIMEOUT },
-    );
+    await execPromise(`${quotedPath} config set account ${options.account} --configuration=${name}`, {
+      timeout: EXEC_TIMEOUT,
+    });
   }
   if (options.region) {
-    await execPromise(
-      `${quotedPath} config set compute/region ${options.region} --configuration=${name}`,
-      { timeout: EXEC_TIMEOUT },
-    );
+    await execPromise(`${quotedPath} config set compute/region ${options.region} --configuration=${name}`, {
+      timeout: EXEC_TIMEOUT,
+    });
   }
 }
