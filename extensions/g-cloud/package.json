@@ -64,6 +64,22 @@
       "type": "textfield",
       "required": false,
       "default": "us-central1"
+    },
+    {
+      "name": "preferredIDE",
+      "title": "Default IDE",
+      "description": "IDE for opening files (e.g., logs, configs)",
+      "type": "appPicker",
+      "required": false,
+      "default": "com.microsoft.VSCode"
+    },
+    {
+      "name": "preferredTerminal",
+      "title": "Default Terminal",
+      "description": "Terminal app for Cloud Shell and CLI commands",
+      "type": "appPicker",
+      "required": false,
+      "default": "com.apple.Terminal"
     }
   ],
   "dependencies": {

@@ -1,10 +1,28 @@
-import { ActionPanel, Action, List, showToast, Toast, Icon, Color, Detail, useNavigation } from "@raycast/api";
+import {
+  ActionPanel,
+  Action,
+  List,
+  showToast,
+  Toast,
+  Icon,
+  Color,
+  Detail,
+  useNavigation,
+  open,
+  getPreferenceValues,
+  Application,
+} from "@raycast/api";
 import { useState, useEffect, useCallback } from "react";
 import { listLogEntries, LogEntry, LogSeverity, LOG_RESOURCE_TYPES } from "../../utils/gcpApi";
 import { initializeQuickLink } from "../../utils/QuickLinks";
 import { ApiErrorView } from "../../components/ApiErrorView";
 import { CloudShellAction } from "../../components/CloudShellAction";
 import { friendlyErrorMessage } from "../../utils/errorMessages";
+import { tmpdir } from "os";
+import { writeFileSync, unlinkSync } from "fs";
+import { join } from "path";
+
+const preferredIDE = getPreferenceValues<{ preferredIDE?: Application }>().preferredIDE;
 
 interface LogsViewProps {
   projectId: string;
@@ -21,6 +39,34 @@ const SEVERITY_LEVELS: { value: LogSeverity | ""; label: string; color: Color; i
   { value: "ERROR", label: "Error", color: Color.Red, icon: Icon.XMarkCircle },
   { value: "CRITICAL", label: "Critical", color: Color.Purple, icon: Icon.Warning },
 ];
+
+const TIME_RANGES: { value: string; label: string; ms: number }[] = [
+  { value: "", label: "All Time", ms: 0 },
+  { value: "15m", label: "Last 15 minutes", ms: 15 * 60 * 1000 },
+  { value: "1h", label: "Last 1 hour", ms: 60 * 60 * 1000 },
+  { value: "6h", label: "Last 6 hours", ms: 6 * 60 * 60 * 1000 },
+  { value: "24h", label: "Last 24 hours", ms: 24 * 60 * 60 * 1000 },
+  { value: "7d", label: "Last 7 days", ms: 7 * 24 * 60 * 60 * 1000 },
+];
+
+function formatLogEntryForExport(entry: LogEntry): string {
+  const ts = entry.timestamp;
+  const sev = (entry.severity || "DEFAULT").padEnd(9);
+  const res = entry.resource.type;
+  let payload = "";
+  if (entry.textPayload) {
+    payload = entry.textPayload;
+  } else if (entry.jsonPayload) {
+    payload = JSON.stringify(entry.jsonPayload, null, 2);
+  } else if (entry.protoPayload) {
+    payload = JSON.stringify(entry.protoPayload, null, 2);
+  }
+  const payloadLines = payload
+    .split("\n")
+    .map((line) => `  ${line}`)
+    .join("\n");
+  return `[${ts}] [${sev}] [${res}]\n${payloadLines}`;
+}
 
 function getSeverityIcon(sev?: LogSeverity): { source: Icon; tintColor: Color } {
   switch (sev) {
@@ -55,6 +101,7 @@ export default function LogsView({ projectId, gcloudPath, initialResourceType }:
   const [severity, setSeverity] = useState<LogSeverity | "">("");
   const [resourceType, setResourceType] = useState<string>(initialResourceType || "");
   const [searchText, setSearchText] = useState<string>("");
+  const [timeRange, setTimeRange] = useState<string>("");
   const { push } = useNavigation();
 
   const fetchLogs = useCallback(async () => {
@@ -62,15 +109,24 @@ export default function LogsView({ projectId, gcloudPath, initialResourceType }:
     setError(null);
 
     try {
+      // Build filter parts
+      const filterParts: string[] = [];
+      if (searchText) {
+        const escaped = searchText.replace(/[\\"]/g, "\\$&");
+        filterParts.push(`(textPayload=~"${escaped}" OR jsonPayload.message=~"${escaped}")`);
+      }
+      if (timeRange) {
+        const range = TIME_RANGES.find((r) => r.value === timeRange);
+        if (range && range.ms > 0) {
+          const since = new Date(Date.now() - range.ms).toISOString();
+          filterParts.push(`timestamp>="${since}"`);
+        }
+      }
+
       const response = await listLogEntries(gcloudPath, projectId, {
         severity: severity || undefined,
         resourceType: resourceType || undefined,
-        filter: searchText
-          ? (() => {
-              const escaped = searchText.replace(/[\\"]/g, "\\$&");
-              return `textPayload=~"${escaped}" OR jsonPayload.message=~"${escaped}"`;
-            })()
-          : undefined,
+        filter: filterParts.length > 0 ? filterParts.join(" AND ") : undefined,
         pageSize: 100,
       });
 
@@ -89,7 +145,7 @@ export default function LogsView({ projectId, gcloudPath, initialResourceType }:
     } finally {
       setIsLoading(false);
     }
-  }, [gcloudPath, projectId, severity, resourceType, searchText]);
+  }, [gcloudPath, projectId, severity, resourceType, searchText, timeRange]);
 
   useEffect(() => {
     initializeQuickLink(projectId);
@@ -97,7 +153,8 @@ export default function LogsView({ projectId, gcloudPath, initialResourceType }:
 
   useEffect(() => {
     fetchLogs();
-  }, [severity, resourceType]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps — fetchLogs omitted intentionally; search is manual (Enter key)
+  }, [severity, resourceType, timeRange]);
 
 
 
@@ -227,6 +284,44 @@ ${JSON.stringify(entry.textPayload || entry.jsonPayload || entry.protoPayload ||
     push(<Detail markdown={markdown} navigationTitle="Log Entry" />);
   }
 
+  async function openLogsInEditor() {
+    if (logs.length === 0) {
+      await showToast({ style: Toast.Style.Failure, title: "No logs to export" });
+      return;
+    }
+
+    const activeRange = TIME_RANGES.find((r) => r.value === timeRange);
+    const header = [
+      `# Google Cloud Logs - Project: ${projectId}`,
+      `# Exported: ${new Date().toISOString()}`,
+      `# Filters: severity=${severity || "all"}, resource=${resourceType || "all"}, time=${activeRange?.label || "All Time"}${searchText ? `, search="${searchText}"` : ""}`,
+      `# Entries: ${logs.length}`,
+      `# ${"─".repeat(60)}`,
+      "",
+    ].join("\n");
+
+    const body = logs.map(formatLogEntryForExport).join("\n\n");
+    const content = header + body + "\n";
+
+    const filePath = join(tmpdir(), `gcloud-logs-${projectId}-${Date.now()}.log`);
+    try {
+      writeFileSync(filePath, content, "utf-8");
+      await open(filePath, preferredIDE);
+      await showToast({ style: Toast.Style.Success, title: `Opened in ${preferredIDE?.name || "editor"}`, message: `${logs.length} entries` });
+
+      // Clean up temp file after 60s (gives the IDE time to read it)
+      setTimeout(() => {
+        try { unlinkSync(filePath); } catch { /* already gone */ }
+      }, 60000);
+    } catch (err) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Failed to open logs",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   function handleSearchSubmit() {
     fetchLogs();
   }
@@ -264,20 +359,41 @@ ${JSON.stringify(entry.textPayload || entry.jsonPayload || entry.protoPayload ||
       actions={
         <ActionPanel>
           <Action title="Search" icon={Icon.MagnifyingGlass} onAction={handleSearchSubmit} />
+          <Action
+            title={preferredIDE ? `Open Logs in ${preferredIDE.name}` : "Open Logs in Editor"}
+            icon={preferredIDE ? { fileIcon: preferredIDE.path } : Icon.TextDocument}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "e" }}
+            onAction={openLogsInEditor}
+          />
           <Action title="Refresh" icon={Icon.RotateClockwise} onAction={fetchLogs} />
-          <ActionPanel.Submenu
-            title={`Resource: ${resourceType ? LOG_RESOURCE_TYPES.find((r) => r.value === resourceType)?.label || resourceType : "All"}`}
-            icon={Icon.Filter}
-          >
-            {LOG_RESOURCE_TYPES.map((type) => (
-              <Action
-                key={type.value || "all-resources"}
-                title={type.label}
-                icon={resourceType === type.value ? Icon.CheckCircle : Icon.Circle}
-                onAction={() => setResourceType(type.value)}
-              />
-            ))}
-          </ActionPanel.Submenu>
+          <ActionPanel.Section title="Filters">
+            <ActionPanel.Submenu
+              title={`Resource: ${resourceType ? LOG_RESOURCE_TYPES.find((r) => r.value === resourceType)?.label || resourceType : "All"}`}
+              icon={Icon.Filter}
+            >
+              {LOG_RESOURCE_TYPES.map((type) => (
+                <Action
+                  key={type.value || "all-resources"}
+                  title={type.label}
+                  icon={resourceType === type.value ? Icon.CheckCircle : Icon.Circle}
+                  onAction={() => setResourceType(type.value)}
+                />
+              ))}
+            </ActionPanel.Submenu>
+            <ActionPanel.Submenu
+              title={`Time: ${TIME_RANGES.find((r) => r.value === timeRange)?.label || "All Time"}`}
+              icon={Icon.Clock}
+            >
+              {TIME_RANGES.map((range) => (
+                <Action
+                  key={range.value || "all-time"}
+                  title={range.label}
+                  icon={timeRange === range.value ? Icon.CheckCircle : Icon.Circle}
+                  onAction={() => setTimeRange(range.value)}
+                />
+              ))}
+            </ActionPanel.Submenu>
+          </ActionPanel.Section>
           <Action.OpenInBrowser
             title="Open in Cloud Console"
             url={`https://console.cloud.google.com/logs/query?project=${projectId}`}
@@ -326,6 +442,12 @@ ${JSON.stringify(entry.textPayload || entry.jsonPayload || entry.protoPayload ||
                 <ActionPanel>
                   <ActionPanel.Section title="Log Actions">
                     <Action title="View Details" icon={Icon.Eye} onAction={() => viewLogDetails(entry)} />
+                    <Action
+                      title={preferredIDE ? `Open Logs in ${preferredIDE.name}` : "Open Logs in Editor"}
+                      icon={preferredIDE ? { fileIcon: preferredIDE.path } : Icon.TextDocument}
+                      shortcut={{ modifiers: ["cmd", "shift"], key: "e" }}
+                      onAction={openLogsInEditor}
+                    />
                     <Action.CopyToClipboard
                       title="Copy Message"
                       content={message}
@@ -353,6 +475,19 @@ ${JSON.stringify(entry.textPayload || entry.jsonPayload || entry.protoPayload ||
                           title={type.label}
                           icon={resourceType === type.value ? Icon.CheckCircle : Icon.Circle}
                           onAction={() => setResourceType(type.value)}
+                        />
+                      ))}
+                    </ActionPanel.Submenu>
+                    <ActionPanel.Submenu
+                      title={`Time: ${TIME_RANGES.find((r) => r.value === timeRange)?.label || "All Time"}`}
+                      icon={Icon.Clock}
+                    >
+                      {TIME_RANGES.map((range) => (
+                        <Action
+                          key={range.value || "all-time"}
+                          title={range.label}
+                          icon={timeRange === range.value ? Icon.CheckCircle : Icon.Circle}
+                          onAction={() => setTimeRange(range.value)}
                         />
                       ))}
                     </ActionPanel.Submenu>
