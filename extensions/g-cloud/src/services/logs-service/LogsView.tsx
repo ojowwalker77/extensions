@@ -443,7 +443,7 @@ ${JSON.stringify(entry.textPayload || entry.jsonPayload || entry.protoPayload ||
               ]}
               actions={
                 <ActionPanel>
-                <ActionPanel.Section title="Log Actions">
+                  <ActionPanel.Section title="Log Actions">
                     <Action title="View Details" icon={Icon.Eye} onAction={() => viewLogDetails(entry)} />
                     <Action
                       title={preferredIDE ? `Open Logs in ${preferredIDE.name}` : "Open Logs in Editor"}
