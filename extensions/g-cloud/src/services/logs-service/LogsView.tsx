@@ -11,7 +11,7 @@ import {
   open,
   getPreferenceValues,
 } from "@raycast/api";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { listLogEntries, LogEntry, LogSeverity, LOG_RESOURCE_TYPES } from "../../utils/gcpApi";
 import { initializeQuickLink } from "../../utils/QuickLinks";
 import { ApiErrorView } from "../../components/ApiErrorView";
@@ -97,7 +97,8 @@ export default function LogsView({ projectId, gcloudPath, initialResourceType }:
   const [error, setError] = useState<string | null>(null);
   const [severity, setSeverity] = useState<LogSeverity | "">("");
   const [resourceType, setResourceType] = useState<string>(initialResourceType || "");
-  const [searchText, setSearchText] = useState<string>("");
+  const [searchText, setSearchText] = useState("");
+  const didMount = useRef(false);
   const [timeRange, setTimeRange] = useState<string>("");
   const { push } = useNavigation();
   const { preferredIDE } = getPreferenceValues<Preferences>();
@@ -109,10 +110,6 @@ export default function LogsView({ projectId, gcloudPath, initialResourceType }:
     try {
       // Build filter parts
       const filterParts: string[] = [];
-      if (searchText) {
-        const escaped = searchText.replace(/[\\"]/g, "\\$&");
-        filterParts.push(`(textPayload:"${escaped}" OR jsonPayload.message:"${escaped}")`);
-      }
       if (timeRange) {
         const range = TIME_RANGES.find((r) => r.value === timeRange);
         if (range && range.ms > 0) {
@@ -143,7 +140,7 @@ export default function LogsView({ projectId, gcloudPath, initialResourceType }:
     } finally {
       setIsLoading(false);
     }
-  }, [gcloudPath, projectId, severity, resourceType, searchText, timeRange]);
+  }, [gcloudPath, projectId, severity, resourceType, timeRange]);
 
   useEffect(() => {
     initializeQuickLink(projectId);
@@ -289,7 +286,7 @@ ${JSON.stringify(entry.textPayload || entry.jsonPayload || entry.protoPayload ||
     const header = [
       `# Google Cloud Logs - Project: ${projectId}`,
       `# Exported: ${new Date().toISOString()}`,
-      `# Filters: severity=${severity || "all"}, resource=${resourceType || "all"}, time=${activeRange?.label || "All Time"}${searchText ? `, search="${searchText}"` : ""}`,
+      `# Filters: severity=${severity || "all"}, resource=${resourceType || "all"}, time=${activeRange?.label || "All Time"}`,
       `# Entries: ${logs.length}`,
       `# ${"─".repeat(60)}`,
       "",
@@ -325,10 +322,6 @@ ${JSON.stringify(entry.textPayload || entry.jsonPayload || entry.protoPayload ||
     }
   }
 
-  function handleSearchSubmit() {
-    fetchLogs();
-  }
-
   if (error) {
     return (
       <List>
@@ -340,9 +333,17 @@ ${JSON.stringify(entry.textPayload || entry.jsonPayload || entry.protoPayload ||
   return (
     <List
       isLoading={isLoading}
-      searchBarPlaceholder="Search logs... (press Enter to search)"
+      searchBarPlaceholder="Filter logs..."
       navigationTitle={`Logs - ${projectId}`}
-      onSearchTextChange={setSearchText}
+      searchText={searchText}
+      onSearchTextChange={(text) => {
+        if (!didMount.current) {
+          didMount.current = true;
+          setSearchText("");
+          return;
+        }
+        setSearchText(text);
+      }}
       searchBarAccessory={
         <List.Dropdown
           tooltip="Filter by Severity"
@@ -361,7 +362,6 @@ ${JSON.stringify(entry.textPayload || entry.jsonPayload || entry.protoPayload ||
       }
       actions={
         <ActionPanel>
-          <Action title="Search" icon={Icon.MagnifyingGlass} onAction={handleSearchSubmit} />
           <Action
             title={preferredIDE ? `Open Logs in ${preferredIDE.name}` : "Open Logs in Editor"}
             icon={preferredIDE ? { fileIcon: preferredIDE.path } : Icon.TextDocument}
@@ -443,7 +443,7 @@ ${JSON.stringify(entry.textPayload || entry.jsonPayload || entry.protoPayload ||
               ]}
               actions={
                 <ActionPanel>
-                  <ActionPanel.Section title="Log Actions">
+                <ActionPanel.Section title="Log Actions">
                     <Action title="View Details" icon={Icon.Eye} onAction={() => viewLogDetails(entry)} />
                     <Action
                       title={preferredIDE ? `Open Logs in ${preferredIDE.name}` : "Open Logs in Editor"}
