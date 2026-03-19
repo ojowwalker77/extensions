@@ -112,7 +112,7 @@ export default function LogsView({ projectId, gcloudPath, initialResourceType }:
       const filterParts: string[] = [];
       if (searchText) {
         const escaped = searchText.replace(/[\\"]/g, "\\$&");
-        filterParts.push(`(textPayload=~"${escaped}" OR jsonPayload.message=~"${escaped}")`);
+        filterParts.push(`(textPayload:"${escaped}" OR jsonPayload.message:"${escaped}")`);
       }
       if (timeRange) {
         const range = TIME_RANGES.find((r) => r.value === timeRange);
