@@ -21,8 +21,6 @@ import { tmpdir } from "os";
 import { writeFileSync, unlinkSync } from "fs";
 import { join } from "path";
 
-const preferredIDE = getPreferenceValues<Preferences>().preferredIDE;
-
 interface LogsViewProps {
   projectId: string;
   gcloudPath: string;
@@ -102,6 +100,7 @@ export default function LogsView({ projectId, gcloudPath, initialResourceType }:
   const [searchText, setSearchText] = useState<string>("");
   const [timeRange, setTimeRange] = useState<string>("");
   const { push } = useNavigation();
+  const { preferredIDE } = getPreferenceValues<Preferences>();
 
   const fetchLogs = useCallback(async () => {
     setIsLoading(true);
