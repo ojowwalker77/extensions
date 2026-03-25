@@ -41,5 +41,3 @@ src/services/network/README.md
 src/services/servicehub/README.md
 src/services/storage/README.md
 helper_documentation
-src/__tests__/
-jest.config.js

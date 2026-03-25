@@ -86,7 +86,7 @@ export function ConfigurationsView({ gcloudPath, onSwitchAccount, onClearCache, 
   }
 
   function openCreate() {
-    push(<CreateConfigForm gcloudPath={gcloudPath} onCreated={loadConfigs} />);
+    push(<CreateConfigForm gcloudPath={gcloudPath} configs={configs} onCreated={loadConfigs} />);
   }
 
   function openDuplicate() {

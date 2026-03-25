@@ -42,6 +42,10 @@ export function DuplicateConfigForm({ gcloudPath, configs, onCreated }: Props) {
       setNameError("Name must start with a letter and contain only letters, numbers, hyphens, underscores");
       return;
     }
+    if (configs.some((c) => c.name === values.newName)) {
+      setNameError("A configuration with this name already exists");
+      return;
+    }
     try {
       await createConfiguration(gcloudPath, values.newName, {
         project: values.project || undefined,

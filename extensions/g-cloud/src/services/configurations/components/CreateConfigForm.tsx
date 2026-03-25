@@ -1,5 +1,6 @@
 import { ActionPanel, Action, Form, showToast, Toast, useNavigation, getPreferenceValues } from "@raycast/api";
 import { useState } from "react";
+import { GCloudConfig } from "../types";
 import { createConfiguration } from "../ConfigurationsService";
 import { friendlyErrorMessage } from "../../../utils/errorMessages";
 
@@ -7,10 +8,11 @@ const defaultRegion = getPreferenceValues<Preferences>().defaultRegion || "us-ce
 
 interface Props {
   gcloudPath: string;
+  configs: GCloudConfig[];
   onCreated: () => void;
 }
 
-export function CreateConfigForm({ gcloudPath, onCreated }: Props) {
+export function CreateConfigForm({ gcloudPath, configs, onCreated }: Props) {
   const { pop } = useNavigation();
   const [nameError, setNameError] = useState<string | undefined>();
 
@@ -21,6 +23,10 @@ export function CreateConfigForm({ gcloudPath, onCreated }: Props) {
     }
     if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(values.name)) {
       setNameError("Name must start with a letter and contain only letters, numbers, hyphens, underscores");
+      return;
+    }
+    if (configs.some((c) => c.name === values.name)) {
+      setNameError("A configuration with this name already exists");
       return;
     }
     try {
