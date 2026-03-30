@@ -7,7 +7,7 @@
 - Added **Open Logs in IDE** action — exports visible log entries to a file and opens in your preferred editor
 - Added **time range filter** for Logging — filter by last 15 min, 1h, 6h, 24h, or 7 days
 - Added **Default Region** preference — pre-fills region in all create forms
-- Added **Default IDE** and **Default Terminal** app picker preferences
+- Added **Default IDE** app picker preference
 
 ### Improvements
 - Friendlier error messages with actionable hints across all service views
@@ -15,7 +15,7 @@
 - Timeouts on all gcloud CLI calls prevent UI hangs
 - Reduced auth/project cache TTL from 72 hours to 6 hours for fresher state
 - Config name validation to prevent invalid characters
-- Search text escaping in log filters
+- Log search now filters client-side for faster, more predictable results — trades full server-side corpus search for instant filtering of the fetched entries
 - Retry backoff now uses jitter to avoid thundering herd
 - Safe JSON parsing — malformed gcloud output no longer crashes the extension
 

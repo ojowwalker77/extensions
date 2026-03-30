@@ -10,8 +10,8 @@ import {
   useNavigation,
   Color,
 } from "@raycast/api";
-import { useState, useEffect, useCallback } from "react";
-import { exec } from "child_process";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { ProjectDropdown } from "./components/ProjectDropdown";
 import { CacheManager, RecentResource, ResourceType, ServiceCounts } from "./utils/CacheManager";
@@ -31,7 +31,7 @@ import { LogsView } from "./services/logs-service";
 import { StreamerModeAction } from "./components/StreamerModeAction";
 import { CloudShellAction } from "./components/CloudShellAction";
 
-const execPromise = promisify(exec);
+const execFilePromise = promisify(execFile);
 
 // Get configured path (may be empty for auto-detection)
 const CONFIGURED_GCLOUD_PATH = getPreferenceValues<Preferences>().gcloudPath;
@@ -92,13 +92,15 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
   const [isLoadingCounts, setIsLoadingCounts] = useState(false);
 
   const { push, pop } = useNavigation();
+  const mountCancelledRef = useRef(false);
+  const countsCancelledRef = useRef(false);
 
   // Check gcloud installation and auth on mount
   useEffect(() => {
-    let cancelled = false;
-    checkGcloudInstallation(cancelled);
+    mountCancelledRef.current = false;
+    checkGcloudInstallation();
     return () => {
-      cancelled = true;
+      mountCancelledRef.current = true;
     };
   }, []);
 
@@ -110,16 +112,16 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
 
   // Load service counts when project changes
   useEffect(() => {
-    let cancelled = false;
+    countsCancelledRef.current = false;
     if (selectedProject && isAuthenticated) {
-      loadServiceCounts(selectedProject, cancelled);
+      loadServiceCounts(selectedProject);
     }
     return () => {
-      cancelled = true;
+      countsCancelledRef.current = true;
     };
   }, [selectedProject, isAuthenticated]);
 
-  async function checkGcloudInstallation(cancelled = false) {
+  async function checkGcloudInstallation() {
     try {
       // If path is configured, use it; otherwise auto-detect
       let pathToUse = CONFIGURED_GCLOUD_PATH;
@@ -127,7 +129,7 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
       if (!pathToUse) {
         // Auto-detect gcloud path
         const detectedPath = await detectGcloudPath();
-        if (cancelled) return;
+        if (mountCancelledRef.current) return;
         if (detectedPath) {
           pathToUse = detectedPath;
           setGcloudPath(detectedPath);
@@ -145,21 +147,19 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
               ? "Download from cloud.google.com/sdk/docs/install"
               : `Install via: ${instructions.command}`;
 
-        if (!cancelled) {
+        if (!mountCancelledRef.current) {
           setIsLoading(false);
           setError(`Google Cloud SDK not found. ${message}`);
         }
         return;
       }
 
-      // Quote path if it contains spaces
-      const quotedPath = pathToUse.includes(" ") ? `"${pathToUse}"` : pathToUse;
-      await execPromise(`${quotedPath} --version`, { timeout: 10000 });
-      if (cancelled) return;
+      await execFilePromise(pathToUse, ["--version"], { timeout: 10000 });
+      if (mountCancelledRef.current) return;
       setGcloudPath(pathToUse);
-      checkAuthStatus(pathToUse, cancelled);
+      checkAuthStatus(pathToUse);
     } catch {
-      if (cancelled) return;
+      if (mountCancelledRef.current) return;
       const instructions = getInstallInstructions();
       setIsLoading(false);
       setError(
@@ -168,16 +168,16 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
     }
   }
 
-  async function checkAuthStatus(pathToUse: string, cancelled = false) {
+  async function checkAuthStatus(pathToUse: string) {
     setIsLoading(true);
-    const quotedPath = pathToUse.includes(" ") ? `"${pathToUse}"` : pathToUse;
 
     try {
-      const { stdout } = await execPromise(
-        `${quotedPath} auth list --format="value(account)" --filter="status=ACTIVE"`,
+      const { stdout } = await execFilePromise(
+        pathToUse,
+        ["auth", "list", "--format=value(account)", "--filter=status=ACTIVE"],
         { timeout: 15000 },
       );
-      if (cancelled) return;
+      if (mountCancelledRef.current) return;
 
       if (stdout.trim()) {
         setIsAuthenticated(true);
@@ -195,13 +195,13 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
         setIsLoading(false);
       }
     } catch (err) {
-      if (cancelled) return;
+      if (mountCancelledRef.current) return;
       setIsAuthenticated(false);
       setIsLoading(false);
     }
   }
 
-  async function loadServiceCounts(projectId: string, cancelled = false) {
+  async function loadServiceCounts(projectId: string) {
     // Check cache first
     const cached = CacheManager.getServiceCounts(projectId);
     if (cached) {
@@ -212,7 +212,7 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
     setIsLoadingCounts(true);
     try {
       const counts = await fetchResourceCounts(gcloudPath, projectId);
-      if (cancelled) return;
+      if (countsCancelledRef.current) return;
       const countsWithTimestamp: ServiceCounts = { ...counts, timestamp: Date.now() };
       CacheManager.saveServiceCounts(projectId, counts);
       setServiceCounts(countsWithTimestamp);
@@ -220,7 +220,7 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
       console.error("Failed to load service counts:", err);
       // Don't show error toast - counts are non-critical
     } finally {
-      if (!cancelled) setIsLoadingCounts(false);
+      if (!countsCancelledRef.current) setIsLoadingCounts(false);
     }
   }
 
@@ -263,9 +263,8 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
 
   async function loginWithDifferentAccount() {
     const toast = await showToast({ style: Toast.Style.Animated, title: "Logging out..." });
-    const quotedPath = gcloudPath.includes(" ") ? `"${gcloudPath}"` : gcloudPath;
     try {
-      await execPromise(`${quotedPath} auth revoke --all --quiet`, { timeout: 15000 });
+      await execFilePromise(gcloudPath, ["auth", "revoke", "--all", "--quiet"], { timeout: 15000 });
       CacheManager.clearAuthCache();
       CacheManager.clearProjectCache();
       setIsAuthenticated(false);

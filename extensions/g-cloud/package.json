@@ -72,14 +72,6 @@
       "type": "appPicker",
       "required": false,
       "default": "com.microsoft.VSCode"
-    },
-    {
-      "name": "preferredTerminal",
-      "title": "Default Terminal",
-      "description": "Terminal app for Cloud Shell and CLI commands",
-      "type": "appPicker",
-      "required": false,
-      "default": "com.apple.Terminal"
     }
   ],
   "dependencies": {
