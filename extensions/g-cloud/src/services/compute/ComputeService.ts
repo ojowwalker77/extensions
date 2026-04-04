@@ -194,7 +194,7 @@ export class ComputeService {
 
       this.vmCache.set(cacheKey, { data: instances, timestamp: now });
       return instances;
-    } catch (error: unknown) {
+    } catch {
       if (cachedData) {
         return cachedData.data;
       }
@@ -243,7 +243,7 @@ export class ComputeService {
       const apiInstances = await listComputeInstances(this.gcloudPath, this.projectId);
       const instances = apiInstances.map((i) => this.convertInstance(i));
       this.vmCache.set("instances:all", { data: instances, timestamp: Date.now() });
-    } catch (error) {
+    } catch {
       // Silently fail for background refresh
     }
   }
@@ -320,7 +320,7 @@ export class ComputeService {
       const zones = apiZones.map((z) => z.name);
       ComputeService.zonesCache = { zones, timestamp: now };
       return zones;
-    } catch (error: unknown) {
+    } catch {
       if (ComputeService.zonesCache) {
         return ComputeService.zonesCache.zones;
       }
@@ -357,7 +357,7 @@ export class ComputeService {
 
       this.diskCache.set(cacheKey, { data: disks, timestamp: now });
       return disks;
-    } catch (error: unknown) {
+    } catch {
       if (cachedData) {
         return cachedData.data;
       }
@@ -406,7 +406,7 @@ export class ComputeService {
       const apiDisks = await listComputeDisks(this.gcloudPath, this.projectId);
       const disks = apiDisks.map((d) => this.convertDisk(d));
       this.diskCache.set("disks:all", { data: disks, timestamp: Date.now() });
-    } catch (error) {
+    } catch {
       // Silently fail for background refresh
     }
   }

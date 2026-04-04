@@ -6,6 +6,7 @@ import DoctorView from "./components/DoctorView";
 import { ConfigurationsView } from "./services/configurations";
 import { revokeAllAuth } from "./services/configurations/ConfigurationsService";
 
+// Raycast resolves this file as the entrypoint for the `configurations` command in package.json.
 const CONFIGURED_GCLOUD_PATH = getPreferenceValues<Preferences>().gcloudPath;
 
 export default function ConfigurationsCommand() {

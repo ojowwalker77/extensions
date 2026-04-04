@@ -148,7 +148,7 @@ export default function LogsView({ projectId, gcloudPath, initialResourceType }:
 
   useEffect(() => {
     fetchLogs();
-  }, [severity, resourceType, timeRange]);
+  }, [fetchLogs]);
 
   function getLogMessage(entry: LogEntry): string {
     if (entry.textPayload) {
@@ -314,6 +314,11 @@ ${JSON.stringify(entry.textPayload || entry.jsonPayload || entry.protoPayload ||
         }
       }, 60000);
     } catch (err) {
+      try {
+        unlinkSync(filePath);
+      } catch {
+        /* temp file was never created or is already gone */
+      }
       await showToast({
         style: Toast.Style.Failure,
         title: "Failed to open logs",

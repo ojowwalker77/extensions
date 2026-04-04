@@ -94,7 +94,7 @@ export default function NetworkView({ projectId, gcloudPath }: NetworkViewProps)
           actions={
             <ActionPanel>
               <Action
-                title="Open Ip Addresses"
+                title="Open IP Addresses"
                 icon={Icon.Globe}
                 onAction={() => {
                   push(<IPAddressView projectId={projectId} gcloudPath={gcloudPath} />);

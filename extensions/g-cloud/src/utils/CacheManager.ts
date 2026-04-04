@@ -340,7 +340,7 @@ export class CacheManager {
 
       try {
         const { executeGcloudCommand } = await import("../gcloud");
-        const result = await executeGcloudCommand(gcloudPath, `projects describe ${projectId}`);
+        const result = await executeGcloudCommand(gcloudPath, ["projects", "describe", projectId]);
 
         if (result && Array.isArray(result) && result.length > 0) {
           const projectDetails = result[0];

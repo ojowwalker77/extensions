@@ -376,13 +376,13 @@ export default function StorageBucketView({ projectId, gcloudPath }: StorageBuck
                 <ActionPanel.Section title="Bucket Actions">
                   <Action title="View Objects" icon={Icon.List} onAction={() => viewBucketObjects(bucket.name)} />
                   <Action
-                    title="View Iam Permissions (storage)"
+                    title="View Iam Permissions (Storage)"
                     icon={Icon.Key}
                     onAction={() => viewBucketIAM(bucket.name)}
                   />
-                  <Action title="View Iam Members (storage)" icon={Icon.Person} onAction={() => viewIAMMembers()} />
+                  <Action title="View Iam Members (Storage)" icon={Icon.Person} onAction={() => viewIAMMembers()} />
                   <Action
-                    title="View Iam Members by Principal (storage)"
+                    title="View Iam Members by Principal (Storage)"
                     icon={Icon.PersonCircle}
                     onAction={() => viewIAMMembersByPrincipal()}
                   />

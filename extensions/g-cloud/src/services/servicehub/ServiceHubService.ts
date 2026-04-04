@@ -194,8 +194,8 @@ export class ServiceHubService {
         return cachedData.data as string[];
       }
 
-      const command = "services list --filter=state:ENABLED --limit=500 --format=json";
-      const result = await executeGcloudCommand(this.gcloudPath, command, this.projectId);
+      const commandArgs = ["services", "list", "--filter=state:ENABLED", "--limit=500"];
+      const result = await executeGcloudCommand(this.gcloudPath, commandArgs, this.projectId);
 
       const services = typeof result === "string" ? JSON.parse(result) : result;
 
@@ -250,13 +250,12 @@ export class ServiceHubService {
 
   async enableService(serviceName: string, options: ServiceEnableOptions = {}): Promise<boolean> {
     try {
-      let command = `services enable ${serviceName}`;
-
+      const commandArgs = ["services", "enable", serviceName];
       if (options.async) {
-        command += " --async";
+        commandArgs.push("--async");
       }
 
-      await executeGcloudCommand(this.gcloudPath, command, this.projectId);
+      await executeGcloudCommand(this.gcloudPath, commandArgs, this.projectId);
 
       this.clearServiceCache();
 
@@ -271,13 +270,12 @@ export class ServiceHubService {
 
   async disableService(serviceName: string, options: ServiceEnableOptions = {}): Promise<boolean> {
     try {
-      let command = `services disable ${serviceName}`;
-
+      const commandArgs = ["services", "disable", serviceName];
       if (options.async) {
-        command += " --async";
+        commandArgs.push("--async");
       }
 
-      await executeGcloudCommand(this.gcloudPath, command, this.projectId);
+      await executeGcloudCommand(this.gcloudPath, commandArgs, this.projectId);
 
       this.clearServiceCache();
 
@@ -319,8 +317,8 @@ export class ServiceHubService {
     try {
       const serviceInfo = getServiceInfo(serviceName);
 
-      const command = `services list --filter=name:${serviceName} --format=json`;
-      const result = await executeGcloudCommand(this.gcloudPath, command, this.projectId);
+      const commandArgs = ["services", "list", `--filter=name:${serviceName}`];
+      const result = await executeGcloudCommand(this.gcloudPath, commandArgs, this.projectId);
 
       const services = typeof result === "string" ? JSON.parse(result) : result;
 

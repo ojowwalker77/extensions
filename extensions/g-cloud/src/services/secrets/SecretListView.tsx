@@ -202,7 +202,7 @@ export default function SecretListView({ projectId, gcloudPath, onProjectChange 
                   message: "Secret value has been automatically cleared for security",
                 });
               }
-            } catch (error) {
+            } catch {
               // Silently fail if clipboard access is denied
             }
           }, 30000);

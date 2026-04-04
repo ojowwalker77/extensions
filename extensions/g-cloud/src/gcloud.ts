@@ -43,28 +43,9 @@ function evictCacheIfNeeded() {
   }
 }
 
-/** Split a command string into args, respecting double-quoted values */
-function shellSplit(cmd: string): string[] {
-  const args: string[] = [];
-  let current = "";
-  let inQuotes = false;
-  for (const char of cmd) {
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === " " && !inQuotes) {
-      if (current) args.push(current);
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-  if (current) args.push(current);
-  return args;
-}
-
 export async function executeGcloudCommand(
   gcloudPath: string,
-  command: string,
+  commandArgs: string[],
   projectId?: string,
   options: {
     skipCache?: boolean;
@@ -78,26 +59,32 @@ export async function executeGcloudCommand(
     throw new Error("Invalid gcloud path: must be a non-empty string");
   }
 
-  if (!command || typeof command !== "string") {
-    throw new Error("Invalid command: must be a non-empty string");
+  if (!Array.isArray(commandArgs) || commandArgs.length === 0) {
+    throw new Error("Invalid command: must be a non-empty string array");
   }
 
   try {
     const { skipCache = false, cacheTTL = COMMAND_CACHE_TTL, maxRetries = 1, timeout = 25000 } = options;
 
-    const commandArgs = shellSplit(command);
+    const args = [...commandArgs];
     if (projectId && typeof projectId === "string" && projectId.trim() !== "") {
-      commandArgs.push(`--project=${projectId}`);
+      const hasProjectFlag = args.some((arg) => arg === "--project" || arg.startsWith("--project="));
+      if (!hasProjectFlag) {
+        args.push(`--project=${projectId}`);
+      }
     }
-    commandArgs.push("--format=json");
+    const hasFormatFlag = args.some((arg) => arg === "--format" || arg.startsWith("--format="));
+    if (!hasFormatFlag) {
+      args.push("--format=json");
+    }
 
     // Use a longer timeout for VM operations
     let effectiveTimeout = timeout;
-    if (command.includes("compute instances") && (command.includes("start") || command.includes("stop"))) {
+    if (args.includes("compute") && args.includes("instances") && (args.includes("start") || args.includes("stop"))) {
       effectiveTimeout = 45000; // 45 seconds for VM operations
     }
 
-    const cacheKey = [gcloudPath, ...commandArgs].join(" ");
+    const cacheKey = [gcloudPath, ...args].join(" ");
 
     const pendingRequest = pendingRequests.get(cacheKey);
     if (pendingRequest) {
@@ -126,7 +113,7 @@ export async function executeGcloudCommand(
 
     const timeoutPromise = createTimeoutPromise();
     const requestPromise = Promise.race([
-      executeCommand(gcloudPath, commandArgs, cacheKey, maxRetries),
+      executeCommand(gcloudPath, args, cacheKey, maxRetries),
       timeoutPromise.promise,
     ]);
 

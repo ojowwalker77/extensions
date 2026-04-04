@@ -6,7 +6,7 @@ import { GCloudConfig } from "./types";
 const execFilePromise = promisify(execFile);
 
 export async function listConfigurations(gcloudPath: string): Promise<GCloudConfig[]> {
-  const result = await executeGcloudCommand(gcloudPath, "config configurations list", undefined, {
+  const result = await executeGcloudCommand(gcloudPath, ["config", "configurations", "list"], undefined, {
     skipCache: true,
   });
   return result as GCloudConfig[];

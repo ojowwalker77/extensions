@@ -194,7 +194,7 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
         setIsAuthenticated(false);
         setIsLoading(false);
       }
-    } catch (err) {
+    } catch {
       if (mountCancelledRef.current) return;
       setIsAuthenticated(false);
       setIsLoading(false);
@@ -271,7 +271,7 @@ export default function GoogleCloudHub({ initialService }: GoogleCloudHubProps =
       setSelectedProject(null);
       toast.style = Toast.Style.Success;
       toast.title = "Logged out";
-    } catch (err) {
+    } catch {
       toast.style = Toast.Style.Failure;
       toast.title = "Logout failed";
     }
